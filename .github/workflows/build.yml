@@ -1,0 +1,43 @@
+name: Firmware build (not device tested)
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build python3 gcc-arm-none-eabi libnewlib-arm-none-eabi
+      - name: Tool versions
+        run: |
+          arm-none-eabi-gcc --version
+          cmake --version
+      - name: Configure
+        run: cmake --preset release -DLXR_ITCM_OPT=-O2
+      - name: Build
+        run: cmake --build --preset release --parallel 2
+      - name: Hash build artifacts
+        run: |
+          cd build/release
+          sha256sum *.img *.elf *.map > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lxr-k2-eurorack-unverified
+          path: |
+            build/release/*.img
+            build/release/*.elf
+            build/release/*.map
+            build/release/SHA256SUMS.txt
+          if-no-files-found: error
