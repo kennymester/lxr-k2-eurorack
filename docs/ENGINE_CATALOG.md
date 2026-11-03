@@ -1,6 +1,6 @@
 # LXR-K2 engine catalog — exploratory design matrix
 
-**Proposal, not implemented.** Every engine below has **exactly eight sound-edit controls**, four per page; names and defaults are pending sound-design review. Engine selection is outside these eight. Performance, routing, global FX and CV matrix remain outside them too.
+**Proposal, not implemented.** Every engine defines **exactly eight core synthesis controls on OSC**, four on each OSC page, with the most important four on Page 1 and four secondary controls on Page 2. Seven other section buttons (AEG/MOD/FM/TRANS/FILTER/LFO/MIX) each initially offer four additional parameters. Engine selection is outside OSC; see [the eight-button control specification](CONTROL_PAGE_SPEC.md).
 
 ## Slot availability (seven triggers / six synthesis voices)
 
@@ -36,25 +36,27 @@ Original DSP models are the implementation target; avoid including unauthorized 
 
 The 808 and 606 were primarily analog synth architectures; the 909 was a hybrid of analog synthesis and samples; the 707 was a PCM digital drum machine. A faithful 707-like implementation has **sample provenance/licensing, flash storage and quality constraints**. K2 must not bundle proprietary Roland ROMs or copyrighted sample libraries without rights. For the first 707 phase, choose either licensed original sample material or a transparently named 707-inspired synthesis approximation.
 
-### Preliminary engine parameter examples
+### Preliminary OSC-only core parameter examples
 
-| Engine | Page 1 — 4 controls | Page 2 — 4 controls |
+These are the eight **engine-specific** controls on OSC, not the full set of 36 visible controls across all eight section buttons. The first four should be the **most used and musically important**. Generic Level, Pan, Output and additional post-filter Drive belong on MIX/FILTER rather than consuming OSC slots.
+
+| Engine | OSC Page 1 — priority four | OSC Page 2 — secondary four |
 |---|---|---|
-| LXR Drum | Tune · Decay · Sweep · Punch | FM · Ratio · Transient · Tone |
-| 909 Kick | Tune · Decay · Pitch · Attack | Body · Click · Drive · Level |
-| 808 Kick | Tune · Decay · Tone · Accent | Sub · Attack · Drive · Level |
-| 606 Kick | Tune · Decay · Punch · Click | Body · Tone · Drive · Level |
-| 707 PCM Kick | Tune · Decay · Start · Accent | Crunch · Filter · Drive · Level |
-| 909 Snare | Tune · Decay · Tone · Snappy | Noise · Attack · Drive · Level |
-| 808 Snare | Tune · Decay · Tone · Snappy | Noise · Attack · Drive · Level |
-| 909 Clap | Tone · Decay · Spread · Attack | Texture · Width · Drive · Level |
-| 808 Clap | Tone · Decay · Scatter · Attack | Noise · Tail · Drive · Level |
-| 909 Cymbal | Tune · Decay · Bright · Attack | Texture · Filter · Drive · Level |
-| 808 Cymbal | Tune · Decay · Metal · Tone | Noise · Filter · Drive · Level |
-| 808 Closed Hat | Tune · Decay · Metal · Tone | Noise · Attack · Drive · Level |
-| 808 Open Hat | Tune · Decay · Metal · Tone | Noise · Attack · Drive · Level |
-| 909 Closed/Open Hat | Tune · Decay · Bright · Start | Filter · Crunch · Drive · Level |
-| 606 Closed/Open Hat | Tune · Decay · Metal · Tone | Noise · Attack · Drive · Level |
+| LXR Drum | Tune · Decay · Sweep · Punch | FM Amount · Ratio · Transient · Tone |
+| 909 Kick | Tune · Decay · Punch · Attack | Body · Pitch Curve · Osc Color · Click Tone |
+| 808 Kick | Tune · Decay · Tone · Attack | Sub · Pitch Bend · Harmonics · Click Tone |
+| 606 Kick | Tune · Decay · Punch · Attack | Body · Click Tone · Pitch Curve · Harmonics |
+| 707 PCM Kick | Tune · Decay · Sample Choice · Tone | Start · Pitch Bend · Crunch · Tail |
+| 909 Snare | Tune · Decay · Snappy · Tone | Noise Color · Body · Rattle · Attack |
+| 808 Snare | Tune · Decay · Snappy · Tone | Noise Color · Body · Pitch Bend · Attack |
+| 909 Clap | Decay · Tone · Spread · Attack | Texture · Slap Count · Tail · Width |
+| 808 Clap | Decay · Tone · Scatter · Attack | Noise Color · Tail · Flutter · Width |
+| 909 Cymbal | Tune · Decay · Bright · Attack | Metal Ratio · Texture · Wash · Accent Color |
+| 808 Cymbal | Tune · Decay · Metal · Tone | Osc Spread · Ring · Noise Color · Wash |
+| 808 Closed Hat | Decay · Tone · Metal · Attack | Tune · Noise Blend · Sizzle · Choke Shape |
+| 808 Open Hat | Decay · Tone · Metal · Wash | Tune · Noise Blend · Attack · Choke Shape |
+| 909 Closed/Open Hat | Decay · Bright · Tune · Start | Sample Color · Attack · Choke Shape · Pitch |
+| 606 Closed/Open Hat | Decay · Tone · Metal · Attack | Tune · Noise Blend · Sizzle · Choke Shape |
 
 Parameter tables are deliberately **not fixed**: decay/time curves, ranges, defaults and source-to-control mappings are to be established through A/B sound testing. The same family can use different algorithms per instrument. Accent can be a sound parameter or a trigger input modulation source; making it one of eight must be a deliberate musical decision.
 
