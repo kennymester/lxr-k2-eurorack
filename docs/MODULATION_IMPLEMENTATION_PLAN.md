@@ -48,11 +48,30 @@ K2ModSlotConfig mod[7][2];  // track 5 is the common clap/cymbal, positions 6 & 
 
 This shape is conceptual. It is not built, does not change native .kit files, and does not specify the final persistence encoding. Type and rate values must have stable, well-documented units and defaults. Do not let a numeric `0` target inadvertently point to an actual DSP parameter.
 
+
+## Exclusive local destination invariant — approved
+
+For playable track `t` and local slots `s0`, `s1`, define `OFF` as a unique sentinel outside all active target IDs:
+
+```c
+bool k2_mod_destinations_valid(uint16_t a, uint16_t b) {
+    return (a == K2_MOD_TARGET_OFF || b == K2_MOD_TARGET_OFF || a != b);
+}
+```
+
+This is a **design snippet**, not a compiled helper. Centralize validation in the eventual model setter; the displayed destination picker additionally suppresses the other local slot's active target ID. Make updates atomic: on a conflicting edit return an explicit conflict status, leave both records unchanged and show an unavailable/assigned indicator. A typed/MIDI write must call the same setter, never modify the record directly. The rule is **per track and for local K2 slots only**.
+
+A non-OFF target reserves its destination even if depth is 0, waveform Type is OFF, or the current engine does not support that target. This makes toggling depths/types/engines predictable. Clearing a route to OFF releases its destination. No silent swapping on a conflict.
+
+On loading a malformed **K2** patch containing two identical non-OFF destination IDs, retain Slot 1 and clear **only Slot 2 destination** to OFF, preserving Slot 2 depth/type/rate. Mark the patch repaired in RAM and notify the user; do not rewrite the original file automatically. Treat unsupported-yet-distinct destination IDs as inactive rather than duplicates. This validation does not alter legacy factory kit bytes.
+
+Test scenarios: assigning A then A on the same track; assigning A then B; assigning OFF in both; attempting an A while the other slot's depth is zero; changing engine between clap/cymbal; assigning A on Drum 1 and Drum 2; malformed K2 file repair; MIDI attempt to duplicate; different logical destinations with similar display labels; unchanged existing Eurorack CV mod matrix.
+
 ## Runtime composition requirements
 
 1. For each of six render voices, evaluate up to two active local modulation sources per audio block, using track-selected settings. Only one hat articulation is active in the shared renderer; no new simultaneous hat polyphony is implied.
 2. Preserve original parameter base values in the current patch or parameter view. Compute modulation as **base + contribution_1 + contribution_2 + existing CV/velocity/automation**, with documented scaling and clamping, rather than repeatedly changing stored `activeParameters` and attempting to infer the old value later.
-3. Two slots must support the same target without fighting: define deterministic summing and clipping; an inactive engine target must have no DSP side effects but must retain settings.
+3. **Exactly one of the two local slots may own any non-OFF destination on a track.** Reject attempts to select Slot 1's destination in Slot 2 and vice versa; do not sum duplicate local routes. A zero-depth slot still reserves its selected destination until changed to OFF. An inactive/unsupported engine target likewise reserves its ID (the user's setting is preserved) but must have no DSP side effect. Different tracks may select equivalent control names without conflict. This restriction applies only to K2 local slots, not the separate Eurorack CV matrix or existing velocity/automation modulations.
 4. Apply per-target smoothing at block/control rate to avoid clicks, zipper noise and unintended transient alteration; real-time code must avoid heap allocations, blocking SD I/O and unbounded loops.
 5. Keep existing MIDI, velocity modulation and 18 Eurorack CV-matrix routes working. The native `modNode_resetTargets` and `modNode_originalValueChanged` code requires an audited refactor or wrapper to track all active K2 routes without stale pointers.
 6. Decide trigger/phase behavior explicitly (default may be phase reset on a note, or free-running) before implementation. Leave rate waveform details provisional until tested.
@@ -68,7 +87,7 @@ This shape is conceptual. It is not built, does not change native .kit files, an
 
 ## Incremental implementation PR sequence
 
-1. **State + tests**: add a standalone two-slot `K2ModSlotConfig` model and pure parameter conversion/default helpers with no audio-engine wiring, no changes to original kit file format. Test slot count (14), clap/cym shared indexing, invalid targets and OFF defaults.
+1. **State + tests**: add a standalone two-slot `K2ModSlotConfig` model, a single shared destination-validation function, and pure parameter conversion/default helpers with no audio-engine wiring or changes to original kit file format. Test slot count (14), clap/cym shared indexing, invalid targets, OFF defaults and exclusive non-OFF destinations on each track. Apply the identical guard to both UI and external writes.
 2. **UI**: bind desktop MOD and LFO to the shared model; bind Eurorack MOD two-row editor to it without modifying Eurorack CV MOD. Keep DSP bypassed during UI-only validation; visibly indicate inactive outputs instead of pretending modulation is active.
 3. **DSP**: integrate two bounded modulation generators per render voice with safe target summing, no stale state or destructive parameter changes; measure worst-case cycles and flash/ITCM pressure.
 4. **Persistence**: versioned K2 kit extension, opt-in migration, full round-trip and stock-kit rollback tests. Do not ship unsigned or hardware-untested images as releases.
@@ -81,7 +100,12 @@ This shape is conceptual. It is not built, does not change native .kit files, an
 - [ ] Two independent modulation assignments operate on all three drum tracks and the snare.
 - [ ] Clap/cym MOD/LFO settings are identical and unchanged across changing engines and editing views.
 - [ ] Open/closed hat configurations are distinct, retrigger/choke works as intended, no simultaneous-hat claim.
-- [ ] Both modulators can address the same valid target deterministically; OFF or zero depth is neutral.
+- [ ] Mod 1 and Mod 2 cannot select the same non-OFF destination on the same track; the other slot's selected destination is filtered out of the UI list.
+- [ ] A conflicting MIDI/API destination edit is rejected without changing either slot; no silent swapping or retargeting.
+- [ ] OFF is selectable by both slots; a destination with depth zero still counts as occupied until deselected.
+- [ ] A duplicate found in a saved K2 patch is repaired deterministically (keep Slot 1, clear Slot 2 destination to OFF; preserve Slot 2 depth/type/rate), with non-destructive user-visible repair feedback.
+- [ ] Shared clap/cymbal instrument selections use one exclusive pair; other drum tracks are independent; the Eurorack's 18-slot CV matrix is unaffected.
+- [ ] Two unique valid destinations can be modulated concurrently; OFF or zero depth is neutral.
 - [ ] Any engine switch preserves unsupported destination choices without remapping/modulating the wrong DSP field.
 - [ ] Existing factory kits, parameter indices, MIDI CC, velocity modulation and Eurorack 18-slot CV routing remain compatible.
 - [ ] Clean desktop/Eurorack CI builds, measured CPU/memory, and physical device tests are documented before firmware release.
