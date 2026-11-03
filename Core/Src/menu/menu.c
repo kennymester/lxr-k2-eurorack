@@ -3513,7 +3513,11 @@ void menu_switchSubPage(uint8_t subPageNr, uint8_t toggle)
 		{
 		// we are moving to a different (specific) subpage
 		activePage=subPageNr;
-		if(activeParameter > 3 && has2ndPage(activePage))
+		/* LXR-K2: entering OSC from another section always starts with the
+		 * four priority engine controls, not the previous page's row. */
+		if((menu_activePage <= VOICE7_PAGE) && (subPageNr == 0))
+			activeParameter = 0;
+		else if(activeParameter > 3 && has2ndPage(activePage))
 			activeParameter = 4;
 		else
 			activeParameter = 0;
