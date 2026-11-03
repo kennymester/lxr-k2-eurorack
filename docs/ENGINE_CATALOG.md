@@ -1,6 +1,6 @@
 # LXR-K2 engine catalog — exploratory design matrix
 
-**Proposal, not implemented.** Every engine defines **exactly eight core synthesis controls on OSC**, four on each OSC page, with the most important four on Page 1 and four secondary controls on Page 2. MOD has two pages for exactly two local modulation routes per track. AEG, FM, CLICK, FILTER and MIX have four controls each. The desktop-only LFO button may shortcut to MOD Page 2; the Eurorack has no LFO section button. Engine selection is outside OSC; see [the eight-button control specification](CONTROL_PAGE_SPEC.md).
+**Proposal, not implemented.** Every engine defines **exactly eight core synthesis controls on OSC**, four on each OSC page, with the most important four on Page 1 and four secondary controls on Page 2. There are exactly two local modulation routes per track: on desktop MOD shows two destinations/depths and LFO shows the corresponding two types/rates; on Eurorack MOD toggles between those two screens. AEG, FM, CLICK, FILTER and MIX have four controls each. Clap/cymbal share the same saved MOD/LFO settings across engine choices. Engine selection is outside OSC; see [the eight-button control specification](CONTROL_PAGE_SPEC.md).
 
 ## Slot availability (seven triggers / six synthesis voices)
 
@@ -10,7 +10,7 @@
 | Drum 2 | Drum/Perc | Independently selectable; can differ from Drum 1 |
 | Drum 3 | Drum/Perc | Independently selectable; can differ from Drum 1/2 |
 | Snare | Snare | LXR snare, classic snares, clap-oriented snare variants, experimental |
-| Clap/Cym | Clap/Cymbal | One selectable clap, cymbal, cowbell or metallic percussion engine |
+| Clap/Cym | Clap/Cymbal | One selectable clap, cymbal, cowbell or metallic percussion engine; **one shared MOD/LFO configuration** regardless of selected algorithm |
 | Closed hat | Hat (articulation) | Separate saved engine and eight-control profile; shared HiHatVoice renderer |
 | Open hat | Hat (articulation) | Separate saved engine and eight-control profile; shared HiHatVoice renderer |
 
@@ -85,4 +85,4 @@ Reserve stable IDs by category and variant; once patch files exist, no ID reuse.
 
 ## What remains undecided
 
-Precise per-engine sound parameters and their ranking; engine selection gesture; whether desktop LFO is a shortcut to MOD Page 2; 707 content rights and fidelity goals; sound/cpu tradeoffs; hat choke semantics during different engine selections; new versioned patch storage and full MOD routing.
+Precise per-engine sound parameters and their ranking; engine selection gesture; confirmation of final Eurorack MOD second-tap gesture timing; 707 content rights and fidelity goals; sound/cpu tradeoffs; hat choke semantics during different engine selections; new versioned patch storage and full MOD routing.
