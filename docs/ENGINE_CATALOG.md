@@ -1,6 +1,6 @@
 # LXR-K2 engine catalog — exploratory design matrix
 
-**Proposal, not implemented.** Every engine defines **exactly eight core synthesis controls on OSC**, four on each OSC page, with the most important four on Page 1 and four secondary controls on Page 2. Seven other section buttons (AEG/MOD/FM/TRANS/FILTER/LFO/MIX) each initially offer four additional parameters. Engine selection is outside OSC; see [the eight-button control specification](CONTROL_PAGE_SPEC.md).
+**Proposal, not implemented.** Every engine defines **exactly eight core synthesis controls on OSC**, four on each OSC page, with the most important four on Page 1 and four secondary controls on Page 2. MOD has two pages for exactly two local modulation routes per track. AEG, FM, CLICK, FILTER and MIX have four controls each. The desktop-only LFO button may shortcut to MOD Page 2; the Eurorack has no LFO section button. Engine selection is outside OSC; see [the eight-button control specification](CONTROL_PAGE_SPEC.md).
 
 ## Slot availability (seven triggers / six synthesis voices)
 
@@ -38,7 +38,7 @@ The 808 and 606 were primarily analog synth architectures; the 909 was a hybrid 
 
 ### Preliminary OSC-only core parameter examples
 
-These are the eight **engine-specific** controls on OSC, not the full set of 36 visible controls across all eight section buttons. The first four should be the **most used and musically important**. Generic Level, Pan, Output and additional post-filter Drive belong on MIX/FILTER rather than consuming OSC slots.
+These are the eight **engine-specific** controls on OSC, not the full set of 36 visible controls in the OSC, MOD, AEG, FM, CLICK, FILTER and MIX editors. The first four should be the **most used and musically important**. Generic Level, Pan, Output and additional post-filter Drive belong on MIX/FILTER rather than consuming OSC slots.
 
 | Engine | OSC Page 1 — priority four | OSC Page 2 — secondary four |
 |---|---|---|
@@ -85,4 +85,4 @@ Reserve stable IDs by category and variant; once patch files exist, no ID reuse.
 
 ## What remains undecided
 
-Which eight LXR macro controls per instrument; whether two pages are accessed by existing OSC/AEG buttons, by page toggle, or another gesture; engine selection gesture; 707 content rights and fidelity goals; actual feature/dsp constraints; hat choke semantics during different engine selections; mixer page visibility.
+Precise per-engine sound parameters and their ranking; engine selection gesture; whether desktop LFO is a shortcut to MOD Page 2; 707 content rights and fidelity goals; sound/cpu tradeoffs; hat choke semantics during different engine selections; new versioned patch storage and full MOD routing.
