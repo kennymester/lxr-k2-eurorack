@@ -1,10 +1,10 @@
-# LXR-K2 — Multi-engine, eight-control firmware design (proposal v0.1)
+# LXR-K2 — Multi-engine firmware design (proposal v0.2)
 
 Status: **DESIGN PROPOSAL ONLY** — no audio DSP, preset format, or UI code changed. Review with the project owner before implementation. Prepared 2026-11-03 for both LXR-K2 desktop and Eurorack.
 
 ## Product intent
 
-Turn the LXR-02 into a streamlined multi-engine percussion synthesizer. Each selectable synthesis engine provides exactly **two sound-edit pages × four parameters (eight immediately editable controls)**, with no hidden third sound-edit page. The device's four sound controls align one-to-one with the four LCD columns. Engine choice and utility parameters live outside the eight sound controls.
+Turn the LXR-02 into a streamlined multi-engine percussion synthesizer. Each engine exposes exactly **eight core controls under OSC**, split into Page 1 (four highest-priority musical controls) and Page 2 (four secondary controls). All **seven remaining section buttons** stay in use with **one page of four controls each** for now (36 visible sound and channel controls total). Four knobs align with four LCD columns. The engine picker sits outside the OSC eight controls. See [control/page specification](CONTROL_PAGE_SPEC.md).
 
 Engine families:
 1. **LXR** — curated, simplified access to the stock sound architecture without eliminating its original DSP code.
@@ -13,14 +13,17 @@ Engine families:
 
 ## Hard interface requirements
 
-- For each voice selection: **Page 1 (Core)** shows parameters 1–4, **Page 2 (Shape)** shows parameters 5–8.
+**Design decisions confirmed by owner:** eight OSC parameters defined per engine, priority controls on OSC Page 1; all eight section buttons retained; the other seven start with four controls per section. Specific parameters outside OSC remain proposals. See [CONTROL_PAGE_SPEC.md](CONTROL_PAGE_SPEC.md) for proposed button roles and navigation.
+
+
+- **OSC button:** Page 1 (Core) shows four controls most important to each engine's musical character; Page 2 (Shape) shows its four less essential controls. Every engine defines its own ordered eight controls.
 - Only one four-column row is active at any time; knob/encoder N always edits the value under screen column N.
 - Page selection must be efficient with existing controls; desktop four encoders versus Eurorack four endless pots and a separate DATA encoder require distinct input handlers but the **same parameter layout**.
 - Dedicated per-voice **ENGINE** selection is outside eight sound parameters; it is kit-scoped, displays engine family/variant, and must be accessible without consuming a sound-page slot.
-- The existing eight voice parameter-section buttons (OSC/AEG/MOD/FM/CLICK/FILTER/LFO or MIX, depending on hardware) presently select many pages. Proposed K2 UI must redefine page entry without breaking voice selection, MIDI menus, saved kits, sequencer editing, FX, or Eurorack MOD/CV mode. Button-gesture semantics are a separate implementation design decision.
-- Mixer-level volume, pan, output routing, decimation, per-voice MIDI channel, sequencer functions, global FX and the Eurorack modulation matrix are **outside** the eight *sound* parameters. They remain accessible from utility/mixer/configuration/performance views; they must not silently disappear.
-- Allow each engine to define its own eight meaningful parameters, with readable labels, units, sensible curves and musical defaults. Consistency where musically appropriate, not forced identical parameter names across unrelated engines.
-- Do not multiplex one knob into a secret second function to evade the eight-parameter promise.
+- Keep all eight existing section buttons: **OSC, AEG, MOD, FM, TRANS, FILTER, LFO, MIX**. OSC gets 2×4 core-engine controls; each other button gets 1×4 supplementary controls initially, with future extension allowed. Existing voice selection, MIDI menus, saved kits, sequencer editing, FX and Eurorack MOD/CV mode must remain functional. Exact engine-selection gesture is a separate decision.
+- Mixer-level volume, pan and output routing belong under **MIX** (or a deliberate platform-specific utility screen), outside OSC's eight core controls. Decimation, MIDI channel, sequencer functions, global FX and the Eurorack modulation matrix must remain accessible from utility/mixer/configuration/performance views; none may silently disappear.
+- Let **each engine** define its own eight meaningful OSC parameters, ordered by importance on Page 1 vs Page 2, with readable labels, units, sensible curves and musical defaults. AEG/MOD/FM/TRANS/FILTER/LFO/MIX are separate reusable sections with neutral/bypass defaults as appropriate.
+- Do not multiplex one knob into a secret extra function on OSC to evade the engine-specific eight-control promise. Additional shared processing belongs in clearly marked section buttons.
 
 ## Hardware voice inventory: critical distinction
 
