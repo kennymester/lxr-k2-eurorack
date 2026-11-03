@@ -1,0 +1,96 @@
+# LXR-K2 — Multi-engine, eight-control firmware design (proposal v0.1)
+
+Status: **DESIGN PROPOSAL ONLY** — no audio DSP, preset format, or UI code changed. Review with the project owner before implementation. Prepared 2026-11-03 for both LXR-K2 desktop and Eurorack.
+
+## Product intent
+
+Turn the LXR-02 into a streamlined multi-engine percussion synthesizer. Each selectable synthesis engine provides exactly **two sound-edit pages × four parameters (eight immediately editable controls)**, with no hidden third sound-edit page. The device's four sound controls align one-to-one with the four LCD columns. Engine choice and utility parameters live outside the eight sound controls.
+
+Engine families:
+1. **LXR** — curated, simplified access to the stock sound architecture without eliminating its original DSP code.
+2. **Classic** — original implementations inspired by the musical behavior of Roland TR-909, TR-808, TR-707, TR-606 percussion. These are not ROM dumps, trademarked product repackagings, or clones of proprietary software.
+3. **Experimental** — wholly original algorithmic percussion: PM/FM, feedback, wavefolding, resonators, chaotic modulation, noise and spectral textures. The target is the aesthetic range of modern digital percussion, not copying another manufacturer's firmware or presets.
+
+## Hard interface requirements
+
+- For each voice selection: **Page 1 (Core)** shows parameters 1–4, **Page 2 (Shape)** shows parameters 5–8.
+- Only one four-column row is active at any time; knob/encoder N always edits the value under screen column N.
+- Page selection must be efficient with existing controls; desktop four encoders versus Eurorack four endless pots and a separate DATA encoder require distinct input handlers but the **same parameter layout**.
+- Dedicated per-voice **ENGINE** selection is outside eight sound parameters; it is kit-scoped, displays engine family/variant, and must be accessible without consuming a sound-page slot.
+- The existing eight voice parameter-section buttons (OSC/AEG/MOD/FM/CLICK/FILTER/LFO or MIX, depending on hardware) presently select many pages. Proposed K2 UI must redefine page entry without breaking voice selection, MIDI menus, saved kits, sequencer editing, FX, or Eurorack MOD/CV mode. Button-gesture semantics are a separate implementation design decision.
+- Mixer-level volume, pan, output routing, decimation, per-voice MIDI channel, sequencer functions, global FX and the Eurorack modulation matrix are **outside** the eight *sound* parameters. They remain accessible from utility/mixer/configuration/performance views; they must not silently disappear.
+- Allow each engine to define its own eight meaningful parameters, with readable labels, units, sensible curves and musical defaults. Consistency where musically appropriate, not forced identical parameter names across unrelated engines.
+- Do not multiplex one knob into a secret second function to evade the eight-parameter promise.
+
+## Hardware voice inventory: critical distinction
+
+The original firmware exposes **seven note/trigger positions** using **six synthesis engines**:
+- Tracks/trigger positions **1–3**: three independently assignable drum engines.
+- Position **4**: snare instrument, selectable snare-family algorithms.
+- Position **5**: **one combined Clap/Cymbal instrument**, not independent simultaneous clap and cymbal voices. Engine selection switches that slot between clap, cymbal and related percussion types.
+- Positions **6 (closed hat) and 7 (open hat)**: two playable triggers that share **one** HiHatVoice renderer and normally choke/retrigger each other.
+
+K2 design target: store **separate engine ID and eight-parameter profile** for closed and open hi-hats (independent selection/editing), while preserving the existing shared hat voice and closed/open choke semantics at first. On a trigger, choose the corresponding articulation profile, then render on the shared hi-hat voice. Do not promise simultaneous, overlapping independent open/closed engines without explicitly allocating additional voices and measuring resource usage. Preserve the ability for a closed hat to cut off an open hat.
+
+All three drum tracks may select different engine variants; there must be no hardcoded assignment of Drum 1 to kick only, Drum 2 to tom only, etc.
+
+## Engine selection and patch persistence
+
+Proposed model:
+```c
+typedef struct {
+    uint16_t engine_id;        // persistent, stable registry ID
+    uint8_t param[8];         // normalized 0..127, per-engine descriptor controls units/defaults
+} K2EnginePatch;
+
+K2EnginePatch k2_voice_patch[7];  // 7 playable trigger positions, 6 underlying synthesis voices
+```
+
+This is an architectural sketch, **not production C**. Preserve existing source/headers until parameter mapping and storage have been audited; use meaningful IDs per engine family+type with never-reused values. Decouple voice number, patch slot, and render instance to avoid hat/clap confusion.
+
+Rendering contract for each algorithm family:
+- `init`, `loadPatch`, `setParameter`, `noteOn/accent`, `renderBlock`, `reset`.
+- Reuse oscillator/envelope/filter components where feasible; implement new algorithms in separate DSP modules, with no malloc, blocking file I/O, and no floating-point transcendental calls in unbounded per-sample loops.
+- If an engine must be swapped mid-tail, define deterministic fade/choke/crossfade; no reuse of incompatible DSP state without reset.
+- Parameter changes and modulated values require smoothing where discontinuities could cause clicks.
+
+## Preset compatibility: strict safety gates
+
+Current `Core/Inc/Parameters.h` uses positional PAR_* values and `Preset/presetManager.c` saves `END_OF_SOUND_PARAMETERS` raw indexed bytes. That is a **binary compatibility constraint**, not an extensible engine-patch schema.
+
+- Do **not** insert new PAR_* enum members into the middle of the legacy index space, delete the old fields, renumber MIDI CCs, or repurpose existing sound parameters globally.
+- An imported stock kit uses the original DSP parameter state and starts with the LXR engine selected. The first load must be sonically unchanged. Curated eight LXR controls edit eight chosen parameters/macros; other historical parameter values remain intact in the underlying kit data until explicitly reset.
+- For native K2 patches, design a **versioned extension/sidecar** with magic, schema version, stable per-trigger engine ID, all eight parameter values, integrity/CRC checks and explicit association to a kit. Select the exact file format only after examining the existing naming and save lifecycle. Unknown/invalid records must safely fall back to stock LXR behavior, not zero memory.
+- Define how switching engines handles old settings: each engine has its own reset defaults and optional previous values; do not accidentally interpret a 909 filter param as an FM ratio or lose an existing kit on save.
+- Test RAM kit morph, temporary autosaves, desktop project/pattern changes, direct SD load/save, and Eurorack CV save behavior before shipping.
+- Kit data produced by custom firmware must never be claimed fully compatible with stock firmware; keep backups and a migration/rollback path.
+
+## Modulation compatibility
+
+- Reconcile the old `modTargets` indexes with eight virtual sound controls without changing old IDs.
+- New K2 per-engine modulation destinations should have semantic IDs: `voice.position + engine.controlSlot`; mapping to DSP properties is engine-specific.
+- Desktop: check MIDI CC/NRPN automation and step parameter locks, LFO and velocity modulation.
+- Eurorack: check 18-slot `ModMatrix_Processor.c`, five physical CV sources, accents and 1V/oct tracking; patch-switching must not leave stale modulation pointers.
+- Audio-rate modulation is a separate optional phase. Initial target: bounded block-rate control updates with smoothing.
+
+## Performance limits
+
+The source indicates STM32F765VG (216 MHz), audio output block size 64, approximate configured actual sample rate 44,140 Hz, and 16 KiB of tightly constrained ITCM. Record flash, ITCM, DTCM and peak callback cycles across all six voices and FX at maximum load. Every classic algorithm needs an explicit CPU envelope; PCM-based engines need a licensed asset format, sample storage plan, decoding/looping, and no SD reads in the audio interrupt.
+
+## Rollout / implementation
+
+1. Freeze verified stock build and copy representative factory/user kits for regression.
+2. Add a centralized engine descriptor registry and an eight-control **UI-only LXR view** backed by original parameters: no synthesis change.
+3. Add engine selector to voice editor/kit state without consuming one of the eight sound slots, with careful per-trigger mapping.
+4. Version K2 patch data and implement full round-trip loading/saving/migration; keep stock .img update and bootloader regions untouched.
+5. Implement original new DSP engines incrementally, beginning with 909 and 808, then 606. Treat 707 as a PCM content and licensing dependency before scheduling full fidelity.
+6. Develop original experimental algorithms.
+7. Port and hardware-regress changes independently on desktop and Eurorack, including hat choking, pitch CV, MIDI, CPU and kit serialization.
+8. Require modified-firmware startup labeling consistent with NOTICE.md before distributing any changed binary.
+
+## Items to confirm with owner
+
+- Is engine selection a dedicated voice-level editor action, or an action reached by holding SHIFT while the voice is selected? **Recommendation:** voice-level ENGINE picker outside the sound pages.
+- Are mixer, performance, FX, modulation and MIDI/CV settings allowed to retain their present separate screens? **Recommendation:** yes — eight applies only to per-engine sound design.
+- Should the hat open and closed articulations support **independent engine choice** despite sharing one voice and mutual choking? **Recommendation:** yes, with shared rendering in v1.
+- Should classic 707 be faithful PCM playback, or an original synthesis approximation with a 707-style character? Rights/space/testing differ greatly.
