@@ -4,7 +4,7 @@ Status: **DESIGN PROPOSAL ONLY** — no audio DSP, preset format, or UI code cha
 
 ## Product intent
 
-Turn the LXR-02 into a streamlined multi-engine percussion synthesizer. Each engine exposes exactly **eight core controls under OSC**, split into Page 1 (four highest-priority musical controls) and Page 2 (four secondary controls). All **seven remaining section buttons** stay in use with **one page of four controls each** for now (36 visible sound and channel controls total). Four knobs align with four LCD columns. The engine picker sits outside the OSC eight controls. See [control/page specification](CONTROL_PAGE_SPEC.md).
+Turn the LXR-02 into a streamlined multi-engine percussion synthesizer. Each engine exposes exactly **eight core controls under OSC**, split into Page 1 (four highest-priority musical controls) and Page 2 (four secondary controls). **MOD** also has two pages of four controls: Destination 1, Depth 1, Destination 2, Depth 2 on Page 1, and Type 1, Rate 1, Type 2, Rate 2 on Page 2. AEG, FM, CLICK, FILTER and MIX have one page of four controls each for now (36 distinct sound/channel controls per track). Four knobs align with four LCD columns. The engine picker sits outside the OSC eight controls. See [control/page specification](CONTROL_PAGE_SPEC.md).
 
 Engine families:
 1. **LXR** — curated, simplified access to the stock sound architecture without eliminating its original DSP code.
@@ -13,16 +13,16 @@ Engine families:
 
 ## Hard interface requirements
 
-**Design decisions confirmed by owner:** eight OSC parameters defined per engine, priority controls on OSC Page 1; all eight section buttons retained; the other seven start with four controls per section. Specific parameters outside OSC remain proposals. See [CONTROL_PAGE_SPEC.md](CONTROL_PAGE_SPEC.md) for proposed button roles and navigation.
+**Design decisions confirmed by owner:** eight engine-specific OSC parameters per voice, priority controls on OSC Page 1; exactly two local modulation routes per track configured through two MOD pages; AEG/FM/CLICK/FILTER/MIX with four controls each. Desktop has an eighth physical sound-section button (LFO) not present on Eurorack; it may shortcut to MOD Page 2 but must not introduce a third local mod route. Specific supplemental-processing controls are provisional. See [CONTROL_PAGE_SPEC.md](CONTROL_PAGE_SPEC.md) for proposed button roles and navigation.
 
 
 - **OSC button:** Page 1 (Core) shows four controls most important to each engine's musical character; Page 2 (Shape) shows its four less essential controls. Every engine defines its own ordered eight controls.
 - Only one four-column row is active at any time; knob/encoder N always edits the value under screen column N.
 - Page selection must be efficient with existing controls; desktop four encoders versus Eurorack four endless pots and a separate DATA encoder require distinct input handlers but the **same parameter layout**.
 - Dedicated per-voice **ENGINE** selection is outside eight sound parameters; it is kit-scoped, displays engine family/variant, and must be accessible without consuming a sound-page slot.
-- Keep all eight existing section buttons: **OSC, AEG, MOD, FM, TRANS, FILTER, LFO, MIX**. OSC gets 2×4 core-engine controls; each other button gets 1×4 supplementary controls initially, with future extension allowed. Existing voice selection, MIDI menus, saved kits, sequencer editing, FX and Eurorack MOD/CV mode must remain functional. Exact engine-selection gesture is a separate decision.
+- **Hardware-specific physical buttons:** Eurorack has seven sound sections (**OSC, AEG, MOD, FM, CLICK, FILTER, MIX**); Desktop has those seven plus physical **LFO**. OSC gets 2×4 engine controls. MOD gets 2×4 controls for the two local modulation slots. Each of AEG/FM/CLICK/FILTER/MIX gets 1×4 initially. Desktop-only LFO is proposed as a shortcut to MOD Page 2; no extra independent modulator. Preserve separate Eurorack CV MOD operating mode, MIDI, kits, FX, and desktop sequencer. Exact engine-selection gesture remains open.
 - Mixer-level volume, pan and output routing belong under **MIX** (or a deliberate platform-specific utility screen), outside OSC's eight core controls. Decimation, MIDI channel, sequencer functions, global FX and the Eurorack modulation matrix must remain accessible from utility/mixer/configuration/performance views; none may silently disappear.
-- Let **each engine** define its own eight meaningful OSC parameters, ordered by importance on Page 1 vs Page 2, with readable labels, units, sensible curves and musical defaults. AEG/MOD/FM/TRANS/FILTER/LFO/MIX are separate reusable sections with neutral/bypass defaults as appropriate.
+- Let **each engine** define its own eight meaningful OSC parameters, ordered by priority (Page 1 before Page 2), with readable labels, units, sensible curves and musical defaults. AEG/FM/CLICK/FILTER/MIX are reusable additional sections; MOD implements two slot-based generators. Supplemental processing must default to neutral/bypass, not alter classic-engine character unexpectedly.
 - Do not multiplex one knob into a secret extra function on OSC to evade the engine-specific eight-control promise. Additional shared processing belongs in clearly marked section buttons.
 
 ## Hardware voice inventory: critical distinction
