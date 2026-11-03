@@ -1,86 +1,66 @@
-# LXR-K2 — Front panel and eight-control OSC editor (design v0.2)
+# LXR-K2 control layout and LXR engine migration — v0.3
 
-**Status:** Design decision confirmed 2026-11-03. No DSP, UI or preset implementation has been changed yet. This is a proposed mapping to refine during engine development.
+**Design approved:** OSC has two pages of four engine-specific parameters, ordered by performance importance. MOD has two pages of four parameters with **two modulation routes per playable track**. All other available sound-section buttons have one page of four controls initially. No engine DSP changes are approved by this document.
 
-## The owner's UI decision
+## Exact hardware distinction
 
-The selected voice exposes all eight existing sound-page/section buttons. **OSC** owns the instrument-specific engine editor: **two pages, four parameters per page, eight total**. Page 1 contains the four most important expressive controls for that particular engine. Page 2 contains four additional, less essential sound-character controls. All engines can have a different eight-control vocabulary, with deliberate consistency only when it helps musicians.
+- **Eurorack LXR DRUM:** seven sound-section buttons: **OSC, AEG, MOD, FM, CLICK, FILTER, MIX**. It has **no dedicated LFO sound-section button**. The module also has a separate MOD operating-mode button for the CV modulation matrix: do not conflate these two buttons.
+- **Desktop LXR-02:** eight sound-section buttons: **OSC, AEG, MOD, FM, CLICK, FILTER, LFO, MIX**. Desktop LFO is a real physical button.
+- **Unified K2 interface:** same OSC and MOD layouts on both targets. The additional desktop LFO button is proposed as a **direct shortcut to MOD Page 2**, rather than a new third modulation slot. Exact key handling must be regression-tested against existing desktop interaction. Four controls across each of AEG, FM, CLICK, FILTER and MIX.
+- Per voice-position, this is **OSC 8 + MOD 8 + (AEG, FM, CLICK, FILTER, MIX × 4) = 36 distinct visible controls**. The desktop shortcut does not increase the count.
+- Do not repurpose or hide Eurorack's independent **CV MOD mode**, which contains 18 slots in the existing firmware; the two new local MOD slots do not replace its matrix.
 
-The **other seven section buttons remain available** and initially expose **one page of four parameters each**. Four parameters is a v1 presentation limit, not a hard architectural maximum. The full instrument editor therefore has 8 + 7×4 = **36 visible controls** before system settings.
+## Exact MOD page requirement
 
-The existing source maps eight select buttons to eight subpage slots in `Core/Inc/menu/menuPages.h`; each `Page` descriptor already holds eight parameter positions (two displayed rows of four). `menu_switchSubPage(buttonNr, 1)` already supports toggling half-pages on repeat selection. The proposed change is an adaptation, not a rewrite from scratch.
+| Section | Knob 1 | Knob 2 | Knob 3 | Knob 4 |
+|---|---|---|---|---|
+| **MOD Page 1 (Routing)** | Destination 1 | Depth 1 | Destination 2 | Depth 2 |
+| **MOD Page 2 (Motion)** | Type 1 | Rate 1 | Type 2 | Rate 2 |
 
-## Proposed button assignment
+Each track has exactly **two local modulation slots**, each a tuple of {destination, depth, type, rate}; no third hidden local slot. Two slots per **seven playable positions** means 14 logical slot configurations, though only six voice engines render audio. Open/closed hats have separate saved modulation configurations but share one hat DSP renderer; when their trigger arrives, use that articulation's settings with existing choke behavior. No simultaneous independent hat voices are implied.
 
-| Select button | Sound-page role | Controls, v1 | Design notes |
-|---|---|---|---|
-| **OSC** | Selected synthesis engine | **8 (2×4)** | Engine-specific; Page 1 priority musical controls, Page 2 secondary sound-shaping controls |
-| **AEG** | Additional amplitude contour | **4** | Attack, Hold, Tail, Curve (proposal); neutral/bypass defaults, not a second redundant engine Decay |
-| **MOD** | One flexible modulation assignment | **4** | Source, Target, Depth, Slew; explore MIDI velocity/accent/aux inputs and target-specific mapping |
-| **FM** | Optional synthesis layer | **4** | Mode, Ratio, Depth, Feedback; a parallel/secondary-oscillator layer where applicable, bypass for an unneeded classic or PCM engine |
-| **TRANS** | Optional transient/noise overlay | **4** | Type, Amount, Tone, Length; preserve natural clicks embedded in classic engines |
-| **FILTER** | Additional post-engine filter | **4** | Cutoff, Resonance, Type, Drive; bypass default to preserve engine-authentic voicing |
-| **LFO** | Performance modulation oscillator | **4** | Rate, Wave, Destination, Amount; detailed sync/retrigger might later receive a second page |
-| **MIX** | Per-voice channel | **4** | Level, Pan, Drive, Output (hardware mapping differs between desktop/Eurorack) |
+**Type** is proposed as a generator shape/behavior: OFF, SINE, TRIANGLE, SAW, SQUARE, SAMPLE & HOLD or SMOOTH RANDOM. **Rate** adjusts speed in Hz (with synchronized divisions a future/secondary option). OFF produces no modulation; a depth of zero bypasses output. All waveforms must be bounded and deterministic. When switching a type, define deterministic phase/retrigger and click-free destination changes.
 
-These are **draft roles** for AEG through MIX. The user has approved the number of controls and the OSC placement, *not* these exact parameter names or optional layers. The physical TRANS button corresponds to the current transient section; exact panel lettering may be shorter.
+Destinations should be selected from engine-aware semantic targets (OSC controls 1–8 and eligible AEG/FM/CLICK/FILTER/MIX controls). Use stable persistent IDs. Depth is bipolar where the target permits it; at zero the source contributes no change. For audio-level parameters, clamp, smooth and apply modulation to a working copy of DSP state, *not* destructive writes to the underlying stored patch values.
 
-## Proposed navigation
+The original code does **not** already implement two arbitrary independent mod generators per track. This requires future DSP/modulation work, memory budgeting, parameter storage and kit migration, not simply rearranging two menu rows. Existing single per-voice LFO/velocity/NRPN data and Eurorack CV modulation must remain compatible until a verified migration exists.
 
-- Select a drum, snare, clap/cym or hat articulation using the existing voice/track selection.
-- Press **OSC** to enter its Page 1 of four highest-priority engine-specific controls.
-- Press **OSC** again to toggle to Page 2. Press again to return to Page 1. A small page indicator should distinguish `OSC 1/2` vs `OSC 2/2`.
-- Press any of the **other seven buttons** to enter its one-page (four-control) editor.
-- Return to OSC at Page 1 by default when changing voice or engine, while allowing retained page state on a same-voice quick return if straightforward.
-- The selected engine's **identity** should remain visible in editor context without using one of its eight knobs.
-- Engine selection should be entered with a separate voice-level command, and the four knobs or data encoder should browse/confirm engine variants. **Exact button gesture is pending hardware review.** Desktop's `SHIFT + OSC` is a candidate: SHIFT+section is currently unimplemented in its voice-select path; Eurorack has a different compile-gated SHIFT behavior and must not be assumed to accept that gesture.
-- The existing menu system, FX, desktop sequencer and Eurorack MOD matrix modes should remain operational and not be consumed by this editor redesign.
+## Sound-section architecture
 
-## Core engine examples (OSC only)
+| Button | Controls | Proposed purpose |
+|---|---:|---|
+| **OSC** | **8**, 2 pages | Eight **engine-specific** core controls, four most important on Page 1 and four secondary on Page 2 |
+| AEG | 4 | Additional envelope contour: Attack, Hold, Tail, Curve (provisional) |
+| **MOD** | **8**, 2 pages | Two destinations/depths; two types/rates as defined above |
+| FM | 4 | Optional secondary synthesis/oscillator module (provisional, engine bypass when not useful) |
+| CLICK | 4 | Optional transient/noise overlay (provisional) |
+| FILTER | 4 | Optional post-engine filter/saturation (provisional) |
+| MIX | 4 | Voice Level, Pan, Drive, Output (platform-dependent routing) |
+| Desktop-only physical LFO | 0 new controls | Proposed shortcut to MOD Page 2, without a third local modulation source |
 
-| Engine | OSC Page 1 — priority | OSC Page 2 — secondary |
-|---|---|---|
-| LXR Drum | Tune, Decay, Sweep, Punch | FM Amount, Ratio, Transient, Tone |
-| 909 Kick | Tune, Decay, Punch, Attack | Body, Pitch Curve, Osc Color, Click Tone |
-| 808 Kick | Tune, Decay, Tone, Attack | Sub, Pitch Bend, Harmonics, Click Tone |
-| 909 Snare | Tune, Decay, Snappy, Tone | Noise Color, Body, Rattle, Attack |
-| 808 Clap | Decay, Tone, Scatter, Attack | Noise Color, Tail, Flutter, Stereo |
-| 606 Closed Hat | Decay, Tone, Metal, Attack | Tuning, Noise Blend, Sizzle, Choke Shape |
-| K2 Phase | Tune, Decay, Ratio, Index | Feedback, Fold, Motion, Tone |
+All supplemental pages must have sensible bypass/default states. Their exact four parameter names and DSP ordering are not yet approved.
 
-These parameters are deliberately engine-specific and **not yet locked**. Engine page 1 should contain what users change most often in a performance. Avoid including generic mixer Level/Output in an engine's eight when those are consistently accessible on MIX. Likewise, any extra processing page must augment rather than duplicate or unexpectedly override the core oscillator model.
+## OSC navigation
 
-## Layering/compatibility semantics to specify before coding
+- Select one of the seven playable track positions.
+- First press **OSC**: Core Page 1; repeat OSC: Core Page 2; repeat: Page 1.
+- Press another sound-section button to go to its first page. Repeat **MOD** to alternate its two pages.
+- The desktop-only LFO button, if enabled as shortcut, opens **MOD Page 2** directly.
+- Only four controls at a time; labels and datatypes derive from the chosen engine descriptor.
+- A separate Engine picker does not consume any of the eight OSC controls; exact hardware shortcut remains to be decided.
 
-- **OSC** controls the **core renderer** that creates the primary sound.
-- **AEG/MOD/FM/TRANS/FILTER/LFO/MIX** configure reusable processing or modulation modules. A module can be unavailable or safely bypassed for an engine that cannot support it efficiently or musically. A bypass state must not silently consume CPU or alter a factory sound.
-- Default supplemental layers must be neutral when selecting a new engine so that a classic 808/909/606 engine sounds correct without setting seven extra pages.
-- AEG is a *post-engine contour*, if implemented, not a separate copy of the engine's natural decay. Define neutral behavior, retrigger interaction and choke semantics carefully.
-- MOD and LFO routing should share a stable semantic target registry: a per-engine control slot (OSC 1–8) or a supplemental-page control. Existing MIDI/NRPN indexes and Eurorack 18-slot CV matrix are **not** renumbered.
-- FM's four controls are placeholders for a **secondary synthesis layer**, not a requirement that every model use FM (e.g., sample-based 707).
-- TRANS is an additional optional exciter, not a second copy of the algorithm's essential click/noise model.
-- The FILTER page is a post-engine optional filter, independent from internal filter shaping the engine sound.
-- MIX is an output channel stage, not part of the eight engine controls; respect desktop vs Eurorack audio-routing differences.
-- Four parameters per supplementary page is the v1 presentation limit. Extend per-section page descriptors later through a versioned expansion mechanism without changing the OSC 8-control contract.
+## Stock LXR mapping: *UI-only first stage*
 
-## Storage model and backward compatibility
+Implement the eight-control OSC editor by **direct mapping to existing PAR_* indices**. This does not change synthesis, reindex parameter IDs, remove original sound controls, or overwrite saved data. See [LXR stock voice mapping](LXR_STOCK_OSC_MAPPING.md) for precise mappings across all seven playable positions.
 
-The existing stock parameter array and kit file format use positional IDs. Preserve all legacy indexed parameters and the original kit as imported. Do not renumber existing `PAR_*`, MIDI CC, modulation targets or parameter-order arrays.
+Stage 1 may temporarily show the same legacy parameter on OSC and its historical AEG/MOD/FM/CLICK page: this is deliberate while proving legacy behavior. Stage 2 will reconcile shared/supplemental pages without eliminating any current parameter access or making duplicated knobs misleading.
 
-The future K2 kit extension will need to persist: per-play-position engine ID + eight core parameters; supplemental-page parameters and bypass states; external modulation destinations; and independent open/closed hat engine profiles. Design a versioned extension or sidecar associated with a kit, preserve legacy kit data and allow rollback. Factory kits imported into K2 must sound the same until the user actively selects a new engine or supplemental processing.
+For imported legacy kits, preserve the byte-for-byte underlying parameter state and source DSP graph. **The LXR engine is the original engine running unmodified**; OSC is simply a prioritized view of eight existing controls until the new engine registry/preset extension is introduced.
 
-## Engineering implications
+## Safety and compatibility
 
-- The existing `Page` structure supports eight slots; existing `menu_switchSubPage` can toggle 1st/2nd row. New dynamic engine descriptors must provide labels, ranges, defaults and conversion to DSP state instead of assuming `PAR_*` indexes.
-- The OSC page is **dynamic by selected engine**; AEG through MIX initially use mostly common descriptors, with per-engine applicability/bypass.
-- Input handling currently reads the active static `menuPages` table from multiple code paths, so a complete implementation must redirect reads in `menu.c`, `IO/adcPots.c`, parameter type/value conversion and menu repaint functions rather than just changing one table.
-- Each device has seven playable triggers but only six synth voices; closed/open hi-hats share the underlying voice. Persist articulation-specific OSC engine settings without promising simultaneous independent rendering or changing choking behavior initially.
-- CMake baseline builds have passed previously, but no new interface feature has been compiled or hardware tested.
-
-## Next design questions
-
-1. Choose exact AEG through MIX parameters and which sections may have engine-specific variations.
-2. Decide engine selection gesture on each hardware target.
-3. Define default state and layering order for FM, TRANS, FILTER and AEG.
-4. Specify envelope independence, smoothing, modulation targets and MIDI/CV control mappings.
-5. Begin a UI-only OSC prototype with the unmodified LXR renderer and use factory-kit audio comparisons to prove legacy compatibility.
+- Static menu records use `Page` with eight `top*` names and eight `bot*` PAR_* indices; these already support two four-control views.
+- Desktop has 8 section positions, Eurorack has 7; do **not** assume one shared index constant and blindly repurpose index 6 as a desktop LFO.
+- Do not insert new `PAR_*` values into the middle of `Core/Inc/Parameters.h`; the current `presetManager.c` serializes positional bytes and stock MIDI CC/NRPN depends on index identity.
+- Desktop's menu and physical ADC driver and Eurorack's CV/MOD mode must be audited together before implementing dynamic engine descriptors or two mod generators.
+- All future firmware builds must report ITCM, flash, timing and hardware validation. Current specification changes are documentation only.
