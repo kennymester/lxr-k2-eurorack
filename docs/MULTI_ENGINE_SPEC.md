@@ -70,6 +70,7 @@ Current `Core/Inc/Parameters.h` uses positional PAR_* values and `Preset/presetM
 
 ## Modulation compatibility
 
+- **Exclusive local destinations per track:** K2 local Slot 1 and Slot 2 cannot both address the same non-OFF target ID. The UI hides the occupied target from the other slot, and external control or invalid patch data is validated using the same model-level rule. OFF is available in both. Zero depth and temporarily unsupported targets still reserve their ID. On invalid saved K2 data, keep Slot 1 and clear Slot 2 destination only, with repair feedback; do not auto-overwrite the file. Other tracks and Eurorack's separate 18-slot CV matrix are unaffected.
 - Reconcile the old `modTargets` indexes with eight virtual sound controls without changing old IDs.
 - New K2 per-engine modulation destinations should have semantic IDs: `voice.position + engine.controlSlot`; mapping to DSP properties is engine-specific.
 - Desktop: check MIDI CC/NRPN automation and step parameter locks, LFO and velocity modulation.
