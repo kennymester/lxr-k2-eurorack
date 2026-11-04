@@ -26,8 +26,8 @@ jobs:
           cmake --version
       - name: Host tests (K2 modulation state)
         run: |
-          cc -std=c11 -Wall -Wextra -Werror -pedantic -O2 -I Core/Inc \\
-            Core/Src/Soundengine/K2ModState.c tests/test_k2_mod_state.c \\
+          cc -std=c11 -Wall -Wextra -Werror -pedantic -O2 -I Core/Inc \
+            Core/Src/Soundengine/K2ModState.c tests/test_k2_mod_state.c \
             -o /tmp/lxr-k2-mod-state-tests
           /tmp/lxr-k2-mod-state-tests
       - name: Configure
