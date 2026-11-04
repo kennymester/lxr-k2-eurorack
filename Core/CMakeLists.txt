@@ -105,6 +105,7 @@ add_library(lxr_engine OBJECT
     Src/Soundengine/FIFO.c
     Src/Soundengine/FxBus.c
     Src/Soundengine/ModMatrix_Processor.c
+    Src/Soundengine/K2ModState.c
     Src/Soundengine/Soundengine.c
     Src/Soundengine/TriggerProcessor.c
 )
